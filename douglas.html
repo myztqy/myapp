@@ -1,0 +1,260 @@
+<html> 
+    <head> 
+        <title> 
+            数据压缩
+        </title> 
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
+    </head>        
+    <body>           
+        <input type="file" name="files" value="选择地图文件" id="path"/> </br>          
+        <input type="button" value="显示地图" onclick="original()" id= "2"/> 
+        <input type="button" value="数据压缩" onclick="compression()" id="3"/> </br>
+        <p id="number" width=400px></p>        
+        <div align="center"><canvas width="700" height="600" style="border:1px solid#c3c3c3;" id="canvas"></canvas ></div>
+        
+        <script> 
+            var e2=0.006693421622; 
+            var a=6378245;
+            var b=6356863.0188;
+            var lambert=new Array();  
+            var change=new Array();   
+            var canvas = document.getElementById('canvas'); 
+            var ctx = canvas.getContext('2d');   
+            var before = 0,after = 0; 
+            function original(files) 
+            { 
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                var file=document.getElementById("path").files; 
+                var myfile = file[0];                   
+                var reader = new FileReader(); 
+                reader.readAsText(myfile); 
+                var data = null; 
+                reader.onload = function(f){
+                data=this.result;
+                var text=data.split("\r\n"); 
+                var num=0;//��� 
+                var p=0; 
+                var canvas = document.getElementById("canvas");   
+                if(canvas.getContext) 
+                {   
+                    var ctx = canvas.getContext("2d"); 
+ 
+                    for(var i=0;i<text.length;i++) 
+                    { 
+                        var now=text[i]; 
+                        if(now.length<=2)//������� 
+                        { continue; } 
+ 
+                        if(now=="END") 
+                        { 
+                            ctx.stroke();//�رյ�ǰ�Ļ���·�� 
+                            num++; 
+                            p=0; 
+                            continue; 
+                        }                       
+                        else 
+                        { 
+                            var point=now.split(","); 
+                            point[0] =  parseFloat(point[0]); 
+                            point[1] = parseFloat(point[1]); 
+                            var pointl = L(point[0],point[1]);                               
+                            pointl[0] = 180+pointl[0]/100000; 
+                            pointl[1] = 90-pointl[1]/100000;   
+                            if(p==0) 
+                            { 
+                                ctx.beginPath(); 
+                                ctx.strokeStyle="black"; 
+                                ctx.lineWidth=1; 
+                                ctx.moveTo(pointl[0] * 10-1450 ,pointl[1] * 10 - 230); 
+                                p=1; 
+                                continue; 
+                            } 
+                            if(p==1){ 
+                            ctx.lineTo(pointl[0] * 10-1450,pointl[1] * 10 - 230); 
+                            } 
+                        } 
+                    } 
+                } 
+            }
+            }
+            
+            function compression(files) 
+            { 
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                var file=document.getElementById("path").files; 
+                var myfile = file[0];                   
+                var reader = new FileReader(); 
+                reader.readAsText(myfile); 
+                var data = null; 
+                reader.onload = function(f){
+                data=this.result;
+                var text=data.split("\r\n"); 
+                var num=0;       
+                var line=new Array(); 
+                var linenum=0;     
+                var point=new Array();   
+                var canvas = document.getElementById("canvas"); 
+                if(canvas.getContext) 
+                {   
+                    var ctx = canvas.getContext("2d");   
+                    for(var i=0;i<text.length;i++) 
+                    { 
+                        var now=text[i]; 
+                        if(now.length<=4 && now!="END")   //������� 
+                        { 
+                            line=[];        //������� 
+                            continue; 
+                        }   
+                        if(now=="END") 
+                        { 
+                            judge(line); 
+                            before += line.length; 
+                            for(var j = 0; j < change.length; j++) 
+                            { 
+                                point[0] =  change[j][0][0]; 
+                                point[1] = change[j][0][1]; 
+                                var pointl=[]; 
+                                pointl[0] = 180+point[0]/100000; 
+                                pointl[1] = 90-point[1]/100000; 
+ 
+                                if(j==0) 
+                                { 
+                                    ctx.beginPath(); 
+                                    ctx.strokeStyle="black"; 
+                                    ctx.lineWidth=1; 
+                                    ctx.moveTo(pointl[0] * 10-1450 ,pointl[1] * 10 - 230); 
+                                    continue; 
+                                } 
+                                else 
+                                { 
+                                    ctx.lineTo(pointl[0] * 10-1450,pointl[1] * 10 - 230); 
+                                } 
+                                if(j==change.length-1) 
+                                { 
+                                    ctx.stroke(); 
+                                } 
+                            } 
+                            num++; 
+                            linenum=0; 
+                            change=[]; 
+                            continue; 
+                        }                
+                        else  //���߷���һ����ά������ 
+                        { 
+                            var point=now.split(","); 
+                            point[0] =  parseFloat(point[0]); 
+                            point[1] = parseFloat(point[1]); 
+                            line[linenum] = [L(point[0],point[1])]; 
+                            linenum++; 
+                        } 
+                    } 
+                } 
+                document.getElementById("number").innerHTML="数据压缩率: "+(after/before*100).toFixed(3)+"%"; 
+                after = 0; 
+                before = 0; 
+            }  }  
+ 
+            function distance(a,b) 
+            { 
+                return Math.sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1])); 
+            } 
+ 
+            function judge(lines)
+            { 
+                var t1=lines[0][0]; 
+                if(lines[0][0][0]==lines[lines.length-1][0][0]&&lines[0][0][1]==lines[lines.length-1][0][1]) 
+                { 
+                    var maxdistance = 0; 
+                    var p; 
+                    for(var i = 1; i < (lines.length-2); i++) 
+                    { 
+                        var dis = distance(lines[0][0],lines[i][0]); 
+                        if(dis > maxdistance) 
+                        { 
+                            maxdistance = dis; 
+                            p = i; 
+                        } 
+                    } 
+                    var lines1=lines.slice(0,p); 
+                    var lines2=lines.slice(p,lines.length); 
+                    douglas(lines1); 
+                    douglas(lines2); 
+                } 
+                else{ 
+                    douglas(lines); 
+                } 
+                return lines; 
+            }   
+            function disp(a, b, p)  
+            { 
+                var A = (b[0][1] - a[0][1]) / Math.sqrt((b[0][1] - a[0][1]) * (b[0][1] - a[0][1]) + (b[0][0] - a[0][0]) * (b[0][0] - a[0][0])); 
+                var B = (a[0][0] - b[0][0]) / Math.sqrt((b[0][1] - a[0][1]) * (b[0][1] - a[0][1]) + (b[0][0] - a[0][0]) * (b[0][0] - a[0][0])); 
+                var C = (a[0][1] * b[0][0] - a[0][0] * b[0][1]) / Math.sqrt((b[0][1] - a[0][1]) * (b[0][1] - a[0][1]) + (b[0][0] - a[0][0]) * (b[0][0] - a[0][0])); 
+                var d = Math.abs(A * p[0][0] + B * p[0][1] + C); 
+                return d; 
+            }        
+            function douglas(line)
+            {                   
+                if(line.length<=2)
+                { 
+                    for(var i = 0; i < line.length; i++) 
+                    { 
+                        change.push(line[i]); 
+                        after++; 
+                    } 
+                    return; 
+                }         
+                var k = 0;    
+                var max = 0;  
+                     
+                for (var i = 1; i < line.length - 1; i++)  
+                { 
+                    var dis = disp(line[0], line[line.length - 1], line[i]); 
+                    if (dis > max)  
+                    { 
+                        max = dis; 
+                        k = i; 
+                    } 
+                } 
+                if (max <= 1800)  
+                { 
+                    change.push(line[0]); 
+                    change.push(line[line.length - 1]); 
+                    after +=2; 
+                    return; 
+                } 
+                var left = line.slice(0, k); 
+                var right = line.slice(k, line.length); 
+                douglas(left); 
+                douglas(right);             
+            }   
+            function L(L,B)//������ͶӰ
+            { 
+                var b0 = 0;                     //ԭ��γ�� 
+                var b1 = 20 * Math.PI / 180;    //��һ��׼γ�� 
+                var b2 = 40 * Math.PI / 180;    //�ڶ���׼γ�� 
+                var l0 = 105 * Math.PI / 180;   //ԭ�㾭�� 
+                var e=Math.sqrt(e2);   
+                B = B * Math.PI / 180; 
+                L = L * Math.PI / 180;               
+                var X,Y; 
+                var r0,r,r1;                   
+                var m = Math.cos(B) / Math.sqrt(1 - e2 * Math.sin(B) * Math.sin(B)); 
+                var t = Math.tan(Math.PI / 4 - B / 2) / Math.pow(((1 - e * Math.sin(B)) / (1 + e * Math.sin(B))), e / 2);   
+                var m1 = Math.cos(b1) / Math.sqrt(1 - e2 * Math.sin(b1) * Math.sin(b1)); 
+                var m2 = Math.cos(b2) / Math.sqrt(1 - e2 * Math.sin(b2) * Math.sin(b2)); 
+                var t1 = Math.tan(Math.PI / 4 - b1 / 2) / Math.pow(((1 - e * Math.sin(b1)) / (1 + e * Math.sin(b1))), e / 2); 
+                var t2 = Math.tan(Math.PI / 4 - b2 / 2) / Math.pow(((1 - e * Math.sin(b2)) / (1 + e * Math.sin(b2))), e / 2);             
+                var n = Math.log(m1 / m2) / Math.log(t1 / t2);   
+                var F = m1 / (n * Math.pow(t1, n));   
+                var r = a * F * Math.pow(t, n); 
+                r1 = n * (L - l0);   
+                var t0 = Math.tan(Math.PI / 4 - b0 / 2) / Math.pow((1 - e * Math.sin(b0)) / (1 + e * Math.sin(b0)), e / 2); 
+                r0 = a * F * Math.pow(t0, n);   
+                X= r0 - r * Math.cos(r1); 
+                Y= r * Math.sin(r1);   
+                return [Y,X]; 
+            }  
+        </script>         
+    </body> 
+</html> 
